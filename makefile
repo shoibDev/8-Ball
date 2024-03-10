@@ -7,15 +7,15 @@ SWIG = swig
 all: _phylib.so
 
 clean:
-	rm -f *.o *.so
+	rm -f *.o *.so *.pyc phylib_wrap.c phylib_wrap.o *.svg
 
 phylib.o: phylib.c
 	$(CC) $(CFLAGS) -fPIC -c phylib.c -o phylib.o
 
 libphylib.so: phylib.o
-	$(CC) -shared -o libphylib.so phylib.o -L$(PYTHON_LIB) -lm
+	$(CC) -shared -o libphylib.so phylib.o -lm
 
-phylib_wrap.c:
+phylib_wrap.c: phylib.i
 	$(SWIG) -python phylib.i
 
 phylib_wrap.o: phylib_wrap.c
