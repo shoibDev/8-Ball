@@ -12,6 +12,17 @@ TABLE_WIDTH = phylib.PHYLIB_TABLE_WIDTH;
 BALL_DIAMETER = phylib.PHYLIB_BALL_DIAMETER;
 TABLE_LENGTH = phylib.PHYLIB_TABLE_LENGTH;
 
+def compute_acceleration(vel_x, vel_y):
+    """Compute the acceleration of a rolling ball given its velocity."""
+    speed = math.sqrt(vel_x*vel_x + vel_y*vel_y)
+    if speed > phylib.PHYLIB_VEL_EPSILON:
+        acc_x = -(vel_x / speed) * phylib.PHYLIB_DRAG
+        acc_y = -(vel_y / speed) * phylib.PHYLIB_DRAG
+    else:
+        acc_x = acc_y = 0.0
+    return acc_x, acc_y
+
+
 HEADER = """<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
 "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
@@ -292,19 +303,10 @@ class Table( phylib.phylib_table ):
         for obj in self:
             if isinstance(obj, StillBall) and obj.obj.still_ball.number == 0:
                 return obj
+            print(obj)
         return None
 
 class Database():
-
-    def compute_acceleration(vel_x, vel_y):
-        """Compute the acceleration of a rolling ball given its velocity."""
-        speed = math.sqrt(vel_x*vel_x + vel_y*vel_y)
-        if speed > phylib.PHYLIB_VEL_EPSILON:
-            acc_x = -(vel_x / speed) * phylib.PHYLIB_DRAG
-            acc_y = -(vel_y / speed) * phylib.PHYLIB_DRAG
-        else:
-            acc_x = acc_y = 0.0
-        return acc_x, acc_y
 
     def __init__ ( self, reset=False ):
 
@@ -412,7 +414,7 @@ class Database():
                 ball = StillBall(ball_number, pos)
             else:
                 vel = Coordinate(xvel, yvel)
-                acc_x, acc_y = Database.compute_acceleration(xvel, yvel)
+                acc_x, acc_y = compute_acceleration(xvel, yvel)
                 acc = Coordinate(acc_x, acc_y)
                 ball = RollingBall(ball_number, pos, vel, acc)
             table += ball
@@ -504,11 +506,11 @@ class Database():
         self.conn.commit()  
         cursor.close()
 
-        return shot_id
+        return shot_id - 1
 
     def recordTableShot(self, table_id, shot_id):
         cursor = self.conn.cursor()
-        cursor.execute('''INSERT INTO TableShot (TABLEID, SHOTID) VALUES (?, ?)''', (table_id, shot_id))
+        cursor.execute('''INSERT INTO TableShot (TABLEID, SHOTID) VALUES (?, ?)''', (table_id + 1, shot_id + 1))
         
         self.conn.commit()  
         cursor.close()
@@ -524,8 +526,10 @@ class Game:
 
         if gameID is not None:
             gameData = self.db.getGame(gameID)
+
             if gameData is None:
                 raise ValueError(f"No game found with gameID: {gameID}")
+            
             self.gameID, self.gameName, self.player1Name, self.player2Name = gameData
         elif gameName is not None and player1Name is not None and player2Name is not None:
             self.gameID = self.db.setGame(gameName, player1Name, player2Name) # Adjust to use setGame result
@@ -537,43 +541,51 @@ class Game:
 
 
     def shoot(self, gameName, playerName, table, xvel, yvel):
+        
         shot_id = self.db.newShot(gameName, playerName)
         
         cue_ball = table.cueBall()
-        print(cue_ball)
         if cue_ball is None:
             raise ValueError("Cue ball not found on the table.")
 
-        if isinstance(cue_ball, StillBall):
-            rolling_cue_ball = RollingBall(
-                cue_ball.obj.still_ball.number,
-                Coordinate(cue_ball.obj.still_ball.pos.x, cue_ball.obj.still_ball.pos.y),
-                Coordinate(xvel, yvel), 
-                Coordinate(*Database.compute_acceleration(xvel, yvel)) 
-            )
-        else:
-            rolling_cue_ball = cue_ball
-            rolling_cue_ball.vel = Coordinate(xvel, yvel)
-            rolling_cue_ball.acc = Coordinate(*Database.compute_acceleration(xvel, yvel))
+        # Store current position of the cue ball
+        xpos, ypos = cue_ball.obj.still_ball.pos.x, cue_ball.obj.still_ball.pos.y
 
+        # Set cue ball as a rolling ball
+        cue_ball.type = phylib.PHYLIB_ROLLING_BALL
+        cue_ball.obj.rolling_ball.number = 0
+        cue_ball.obj.rolling_ball.pos.x = xpos
+        cue_ball.obj.rolling_ball.pos.y = ypos
+        cue_ball.obj.rolling_ball.vel.x = xvel
+        cue_ball.obj.rolling_ball.vel.y = yvel
 
+        # Recalculate acceleration based on the given velocities (implement compute_acceleration accordingly)
+        acc_x, acc_y = compute_acceleration(xvel, yvel)
+        cue_ball.obj.rolling_ball.acc.x = acc_x
+        cue_ball.obj.rolling_ball.acc.y = acc_y
+
+        # Loop through segments until no more segments are returned
         while True:
+            start_time = table.time
             segment_table = table.segment()
 
             if segment_table is None:
                 break 
 
-            segment_length_seconds = segment_table.time - table.time
+            end_time = segment_table.time
+            segment_length_seconds = end_time - start_time
             steps = int(segment_length_seconds / FRAME_INTERVAL)
 
-            for step in range(steps):
-                elapsed_time = step * FRAME_INTERVAL
+            frame = 0
+            while frame < steps:
+                elapsed_time = frame * FRAME_INTERVAL
                 new_table = table.roll(elapsed_time)
-                new_table.time = table.time + elapsed_time
+                new_table.time = start_time + elapsed_time
 
                 table_id = self.db.writeTable(new_table)
                 self.db.recordTableShot(table_id, shot_id)
-
-            table.time = segment_table.time 
+                frame+=1
+            table = segment_table
 
         return shot_id
+

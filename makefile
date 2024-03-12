@@ -7,7 +7,7 @@ SWIG = swig
 all: _phylib.so
 
 clean:
-	rm -f *.o *.so *.pyc phylib_wrap.c phylib_wrap.o *.svg
+	rm -f *.o *.so *.pyc phylib_wrap.c phylib_wrap.o
 
 phylib.o: phylib.c
 	$(CC) $(CFLAGS) -fPIC -c phylib.c -o phylib.o
