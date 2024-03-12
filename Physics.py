@@ -565,27 +565,27 @@ class Game:
         cue_ball.obj.rolling_ball.acc.y = acc_y
 
         # Loop through segments until no more segments are returned
-        while True:
-            start_time = table.time
-            segment_table = table.segment()
 
-            if segment_table is None:
+        current_table = table
+        while True:
+            start_time = current_table.time
+            next_segment_table = current_table.segment()
+
+            if next_segment_table is None:
                 break 
 
-            end_time = segment_table.time
-            segment_length_seconds = end_time - start_time
+            segment_length_seconds = next_segment_table.time - start_time
             steps = int(segment_length_seconds / FRAME_INTERVAL)
 
-            frame = 0
-            while frame < steps:
+            for frame in range(steps):
                 elapsed_time = frame * FRAME_INTERVAL
-                new_table = table.roll(elapsed_time)
+                new_table = current_table.roll(elapsed_time)
                 new_table.time = start_time + elapsed_time
 
                 table_id = self.db.writeTable(new_table)
                 self.db.recordTableShot(table_id, shot_id)
-                frame+=1
-            table = segment_table
+
+            current_table = next_segment_table
 
         return shot_id
 
