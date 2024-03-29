@@ -5,12 +5,18 @@ import os
 
 ################################################################################
 # import constants from phylib to global varaibles
-BALL_RADIUS = phylib.PHYLIB_BALL_RADIUS;
-FRAME_INTERVAL = 0.01;
-
-TABLE_WIDTH = phylib.PHYLIB_TABLE_WIDTH;
+BALL_RADIUS   = phylib.PHYLIB_BALL_RADIUS;
 BALL_DIAMETER = phylib.PHYLIB_BALL_DIAMETER;
+HOLE_RADIUS = phylib.PHYLIB_HOLE_RADIUS;
 TABLE_LENGTH = phylib.PHYLIB_TABLE_LENGTH;
+TABLE_WIDTH = phylib.PHYLIB_TABLE_WIDTH;
+SIM_RATE = phylib.PHYLIB_SIM_RATE;
+VEL_EPSILON = phylib.PHYLIB_VEL_EPSILON;
+DRAG = phylib.PHYLIB_DRAG;
+MAX_TIME = phylib.PHYLIB_MAX_TIME;
+MAX_OBJECTS = phylib.PHYLIB_MAX_OBJECTS;
+FRAME_INTERVAL = 0.01
+
 
 def compute_acceleration(vel_x, vel_y):
     """Compute the acceleration of a rolling ball given its velocity."""
@@ -125,8 +131,9 @@ class Hole(phylib.phylib_object):
 
         # this creates a generic phylib_object
         phylib.phylib_object.__init__( self, 
-                                       phylib.PHYLIB_HOLE, 
-                                       pos );
+                                       phylib.PHYLIB_HOLE, 0, 
+                                       pos, None, None,
+                                        0.0, 0.0 );
       
         # this converts the phylib_object into a StillBall class
         self.__class__ = Hole;
@@ -143,9 +150,11 @@ class HCushion(phylib.phylib_object):
     def __init__(self, y):
 
         # this creates a generic phylib_object
-        phylib.phylib_object.__init__( self, 
-                                       phylib.PHYLIB_HCUSHION, 
-                                       y);
+        phylib.phylib_object.__init__(self, 
+                                      phylib.PHYLIB_HCUSHION, 
+                                      0, 
+                                      None, None, None, 
+                                      0.0, y )
       
         # this converts the phylib_object into a StillBall class
         self.__class__ = HCushion;
@@ -162,9 +171,10 @@ class VCushion(phylib.phylib_object):
     def __init__(self, x):
 
         # this creates a generic phylib_object
-        phylib.phylib_object.__init__( self, 
-                                       phylib.PHYLIB_VCUSHION, 
-                                       x);
+        phylib.phylib_object.__init__(  self, 
+                                        phylib.PHYLIB_VCUSHION, 0, 
+                                        None, None, None, 
+                                        x, 0.0)
       
         # this converts the phylib_object into a StillBall class
         self.__class__ = VCushion;
@@ -303,14 +313,11 @@ class Table( phylib.phylib_table ):
         for obj in self:
             if isinstance(obj, StillBall) and obj.obj.still_ball.number == 0:
                 return obj
-            print(obj)
         return None
 
 class Database():
 
     def __init__ ( self, reset=False ):
-
-        print("Initizlizing Database")
 
         if reset:
             # If reset is True, delete the existing database file if it exists
