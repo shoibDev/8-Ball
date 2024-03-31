@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>8 Ball Game Setup</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+
+<h2>8 Ball Game Setup</h2>
+<form id="gameSetupForm" method="post">
+    <label for="player1Name">Player 1 Name:</label>
+    <input type="text" id="player1Name" name="player1Name" required>
+    <br>
+    <label for="player2Name">Player 2 Name:</label>
+    <input type="text" id="player2Name" name="player2Name" required>
+    <br>
+    <label for="gameName">Game Name:</label>
+    <input type="text" id="gameName" name="gameName" required>
+    <br>
+    <button type="submit">Initialize Game</button>
+</form>
+
+<!-- Main content area for dynamically loaded content -->
+<div id="mainContent"></div>
+
+<script type="module" src="setup.js"></script>
+
+</body>
+</html>

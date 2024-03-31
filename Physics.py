@@ -291,7 +291,7 @@ class Table( phylib.phylib_table ):
                 new_ball = RollingBall( ball.obj.rolling_ball.number,
                                         Coordinate(0,0),
                                         Coordinate(0,0),
-                                        Coordinate(0,0) );
+                                         Coordinate(0,0) );
                 # compute where it rolls to
                 phylib.phylib_roll( new_ball, ball, t );
         
@@ -311,6 +311,7 @@ class Table( phylib.phylib_table ):
 
     def cueBall(self):
         for obj in self:
+            print(obj)
             if isinstance(obj, StillBall) and obj.obj.still_ball.number == 0:
                 return obj
         return None
@@ -521,6 +522,18 @@ class Database():
         
         self.conn.commit()  
         cursor.close()
+        
+    def getTableIdByShotId(self, shot_id):
+        cursor = self.conn.cursor()
+        # Order by TABLEID in descending order to get the last TABLEID associated with the SHOTID
+        cursor.execute('''SELECT TABLEID FROM TableShot WHERE SHOTID = ? ORDER BY TABLEID DESC LIMIT 1''', (shot_id + 1,))
+        table_id_result = cursor.fetchone()
+        cursor.close()  # Closing the cursor after use
+
+        if table_id_result:
+            return table_id_result[0]  # Returning the TABLEID value as is from the database
+        else:
+            return None
 
 
 class Game:
@@ -550,6 +563,7 @@ class Game:
     def shoot(self, gameName, playerName, table, xvel, yvel):
         
         shot_id = self.db.newShot(gameName, playerName)
+        svg_contents = []  # Initialize an empty list to store SVG content
         
         cue_ball = table.cueBall()
         if cue_ball is None:
@@ -579,6 +593,7 @@ class Game:
             next_segment_table = current_table.segment()
 
             if next_segment_table is None:
+                svg_contents.append(current_table.svg())
                 break 
 
             segment_length_seconds = next_segment_table.time - start_time
@@ -591,8 +606,9 @@ class Game:
 
                 table_id = self.db.writeTable(new_table)
                 self.db.recordTableShot(table_id, shot_id)
+                svg_contents.append(new_table.svg())
 
             current_table = next_segment_table
 
-        return shot_id
+        return shot_id, svg_contents
 
