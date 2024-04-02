@@ -4,10 +4,71 @@
 <meta charset="UTF-8">
 <title>8 Ball Game Setup</title>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+        background-color: #f0f0f0;
+        flex-direction: column; /* To align items vertically */
+    }
+
+    h1 {
+        color: #007bff; /* Match button color for consistency */
+        margin-bottom: 20px; /* Adds some space between the title and the form */
+    }
+
+    form {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        width: 100%;
+    }
+
+    h2 {
+        text-align: center;
+        color: #333;
+    }
+
+    label {
+        margin: 10px 0 5px;
+        display: block;
+        color: #666;
+    }
+
+    input[type="text"] {
+        width: calc(100% - 22px);
+        padding: 10px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-sizing: border-box;
+    }
+
+    button[type="submit"] {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 5px;
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+    }
+
+    button[type="submit"]:hover {
+        background-color: #0056b3;
+    }
+</style>
 </head>
 <body>
 
-<h2>8 Ball Game Setup</h2>
+<h1>Welcome to 8 Ball</h1> <!-- Title added above the form -->
+
 <form id="gameSetupForm" method="post">
     <label for="player1Name">Player 1 Name:</label>
     <input type="text" id="player1Name" name="player1Name" required>

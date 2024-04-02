@@ -11,21 +11,23 @@ $(document).ready(function() {
     $("#gameSetupForm").submit(function(event) {
         event.preventDefault();
 
-        // Use getFormData to retrieve form data
         var formData = getFormData();
         
         $.post("/initialize", formData, function(data) {
+            // Hide the form and optional header
             $('#gameSetupForm').hide();
+            $('h1').hide();
 
-            // Optionally, if you want to also hide the header
-            $('h2').hide();
+            // Load the 8-ball.html content
             $('#mainContent').load('8-ball.html', function() {
-                // After loading 8-ball.html, you can initialize or display the game setup data
-                // This is also a good place to run any JavaScript needed to initialize the new content
+                // Use the SVG content from the response
+                // Assuming you have a container to display the SVG
+                $('#svgContainer').html(data.svg);
                 console.log("8-ball game setup:", formData);
-                // You might want to do something with formData here or initialize the game based on the response
+                // Additional initialization based on the game setup can be done here
             });
-        }).fail(function() {
+        }, "json") // Expect a JSON response
+          .fail(function() {
             alert("Error initializing the game.");
         });
     });

@@ -34,6 +34,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
     game = None;
     tableId = 0;
+    initalTable = None;
 
     db = Physics.Database();
     cur = db.conn.cursor();
@@ -67,23 +68,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         
             self.wfile.write( bytes( content, "utf-8" ) );
             fp.close();
-        
-        elif parsed.path == '/getSVG':
-            tableId = 0
-            table = RequestHandler.db.readTable(tableId)
-
-            if table:  
-
-                svg_content = table.svg()
-
-                self.send_response(200)
-                self.send_header("Content-type", "text/html")
-                self.end_headers()
-
-                self.wfile.write(bytes(svg_content, "utf-8"))
-            else:
-                self.send_response(404)
-                self.end_headers()
+    
 
         elif parsed.path == '/script.js':
             fp = open( '.'+self.path);
@@ -105,6 +90,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             # generate the headers
             self.send_response( 200 ); # OK
             self.send_header( "Content-type", "application/javascript" );
+            self.send_header( "Content-length", str(len( content )) );
+            self.end_headers();
+        
+            self.wfile.write( bytes( content, "utf-8" ) );
+            fp.close();
+        elif parsed.path == '/style.css':
+            fp = open( '.'+self.path);
+            content = fp.read();
+
+            # generate the headers
+            self.send_response( 200 ); # OK
+            self.send_header( "Content-type", "text/css" );
             self.send_header( "Content-length", str(len( content )) );
             self.end_headers();
         
@@ -161,26 +158,32 @@ class RequestHandler(BaseHTTPRequestHandler):
                             math.sqrt(3.0)/2.0*(Physics.BALL_DIAMETER+4.0) +
                             nudge()
                             );
-            sb = Physics.StillBall( 3, pos );
+            sb = Physics.StillBall( 8, pos );
             table += sb;
 
             # cue ball also still
             pos = Physics.Coordinate( Physics.TABLE_WIDTH/2.0 + random.uniform( -3.0, 3.0 ),
                                     Physics.TABLE_LENGTH - Physics.TABLE_WIDTH/2.0 );
-            sb  = Physics.StillBall( 0, pos );
+            sb  = Physics.StillBall( 0, pos );  
 
             table += sb;
-            RequestHandler.tableId = RequestHandler.db.writeTable( table );
+            RequestHandler.initalTable = table;
             RequestHandler.game = Physics.Game( gameName=gameName, player1Name=player1Name, player2Name=player2Name );
-
+            
+            svg_content = table.svg()
+            response_data = {
+                "message": f"Game '{gameName}' initialized for players: {player1Name} and {player2Name}.",
+                "svg": svg_content
+            }
             # Respond to indicate success
             self.send_response(200)
-            self.send_header("Content-type", "text/plain")
+            self.send_header("Content-type", "application/json")
             self.end_headers()
-            response_message = f"Game '{gameName}' initialized for players: {player1Name} and {player2Name}."
-            self.wfile.write(response_message.encode('utf-8'))
+            self.wfile.write(json.dumps(response_data).encode('utf-8'))
 
         elif parsed.path == '/shot':
+            switchPlayer = 1  # Assume Always swithcing:
+            
             form_data = parse_qs(post_data.decode('utf-8'))
 
             gameName = form_data.get('gameName', [None])[0]
@@ -188,24 +191,37 @@ class RequestHandler(BaseHTTPRequestHandler):
             x = float(form_data.get('x', [0])[0])
             y = float(form_data.get('y', [0])[0])
 
-            print(gameName, playerName, x, y)
-
-            table = RequestHandler.db.readTable(RequestHandler.tableId -1 )
-            print(RequestHandler.tableId)
-        
-            shotId, svg_contents = RequestHandler.game.shoot(gameName, playerName, table, x, y)
-            RequestHandler.tableId = RequestHandler.db.getTableIdByShotId(shotId)
-
+            if RequestHandler.tableId == 0:
+                shotId, svg_contents, balls_sunk = RequestHandler.game.shoot(gameName, playerName, RequestHandler.initalTable, x, y)
+            else:
+                table = RequestHandler.db.readTable(RequestHandler.tableId)
+                shotId, svg_contents, balls_sunk = RequestHandler.game.shoot(gameName, playerName, table, x, y)
             
-            # Send a successful response back
+        
+            RequestHandler.tableId = RequestHandler.db.getTableIdByShotId(shotId)    
+            table = RequestHandler.db.readTable(RequestHandler.tableId)
+
+            if table.cueBall() is None: 
+                pos = Physics.Coordinate( Physics.TABLE_WIDTH/2.0 + random.uniform( -3.0, 3.0 ),
+                                    Physics.TABLE_LENGTH - Physics.TABLE_WIDTH/2.0 );
+                sb  = Physics.StillBall( 0, pos );  
+                table += sb;
+
+                RequestHandler.db.writeTable(table)
+                RequestHandler.db.recordTableShot(RequestHandler.tableId + 1, shotId)
+                RequestHandler.tableId = RequestHandler.tableId + 1
+                svg_contents.append(table.svg())
+
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            
-            # Send a confirmation message back
           
-            response = json.dumps({'svgContents': svg_contents})
-        
+            response = json.dumps({
+                'svgContents': svg_contents,
+                'switchPlayer': switchPlayer,  # Add this line to include the switch information
+                'balls_sunk': balls_sunk, 
+            })
+
             self.wfile.write(response.encode('utf-8'))
             
         else:

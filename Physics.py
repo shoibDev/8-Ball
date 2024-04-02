@@ -291,7 +291,7 @@ class Table( phylib.phylib_table ):
                 new_ball = RollingBall( ball.obj.rolling_ball.number,
                                         Coordinate(0,0),
                                         Coordinate(0,0),
-                                         Coordinate(0,0) );
+                                        Coordinate(0,0) );
                 # compute where it rolls to
                 phylib.phylib_roll( new_ball, ball, t );
         
@@ -311,7 +311,6 @@ class Table( phylib.phylib_table ):
 
     def cueBall(self):
         for obj in self:
-            print(obj)
             if isinstance(obj, StillBall) and obj.obj.still_ball.number == 0:
                 return obj
         return None
@@ -433,30 +432,32 @@ class Database():
 
         return table
 
-    def writeTable( self, table ):
+    def writeTable(self, table):
         cursor = self.conn.cursor()
-        cursor.execute('''INSERT INTO TTable (TIME) VALUES (?)''', (table.time,))
-        table_id = cursor.lastrowid 
+
+        cursor.execute('''INSERT INTO TTable (TIME) VALUES (?);''', (table.time,))
+        tableID = cursor.lastrowid
 
         for ball in table:
             if isinstance(ball, StillBall):
-                cursor.execute('''INSERT INTO Ball (BALLNO, XPOS, YPOS, XVEL, YVEL) 
-                                VALUES (?, ?, ?, ?, ?)''', (ball.obj.still_ball.number, ball.obj.still_ball.pos.x, ball.obj.still_ball.pos.y, None, None))
-                ball_id = cursor.lastrowid  
-
-                cursor.execute('''INSERT INTO BallTable (BALLID, TABLEID) VALUES (?, ?)''', (ball_id, table_id))
-            
-            elif isinstance(ball, RollingBall):
-                cursor.execute('''INSERT INTO Ball (BALLNO, XPOS, YPOS, XVEL, YVEL) 
-                                VALUES (?, ?, ?, ?, ?)''', (ball.obj.rolling_ball.number, ball.obj.rolling_ball.pos.x, ball.obj.rolling_ball.pos.y, ball.obj.rolling_ball.vel.x, ball.obj.rolling_ball.vel.y))
-                ball_id = cursor.lastrowid 
-
-                cursor.execute('''INSERT INTO BallTable (BALLID, TABLEID) VALUES (?, ?)''', (ball_id, table_id))
+                cursor.execute('''INSERT INTO Ball (BALLNO, XPOS, YPOS) VALUES (?, ?, ?);''',
+                               (ball.obj.still_ball.number, ball.obj.still_ball.pos.x, ball.obj.still_ball.pos.y))
+                ballID = cursor.lastrowid
                 
-        self.conn.commit()  
+                cursor.execute('''INSERT INTO BallTable (BALLID, TABLEID) VALUES (?, ?);''', (ballID, tableID))
+            elif isinstance(ball, RollingBall):
+                cursor.execute('''INSERT INTO Ball (BALLNO, XPOS, YPOS, XVEL, YVEL) VALUES (?, ?, ?, ?, ?);''',
+                               (ball.obj.rolling_ball.number, ball.obj.rolling_ball.pos.x, ball.obj.rolling_ball.pos.y, ball.obj.rolling_ball.vel.x, ball.obj.rolling_ball.vel.y))
+                ballID = cursor.lastrowid
+               
+                cursor.execute('''INSERT INTO BallTable (BALLID, TABLEID) VALUES (?, ?);''', (ballID, tableID))
+            else:
+                ballID = None
+
+        self.conn.commit()
         cursor.close()
 
-        return table_id - 1
+        return tableID - 1
     
     def close( self ):
         self.conn.commit()
@@ -514,19 +515,19 @@ class Database():
         self.conn.commit()  
         cursor.close()
 
-        return shot_id - 1
+        return shot_id
 
     def recordTableShot(self, table_id, shot_id):
         cursor = self.conn.cursor()
-        cursor.execute('''INSERT INTO TableShot (TABLEID, SHOTID) VALUES (?, ?)''', (table_id + 1, shot_id + 1))
+        cursor.execute('''INSERT INTO TableShot (TABLEID, SHOTID) VALUES (?, ?)''', (table_id, shot_id))
         
         self.conn.commit()  
         cursor.close()
-        
+    
     def getTableIdByShotId(self, shot_id):
         cursor = self.conn.cursor()
         # Order by TABLEID in descending order to get the last TABLEID associated with the SHOTID
-        cursor.execute('''SELECT TABLEID FROM TableShot WHERE SHOTID = ? ORDER BY TABLEID DESC LIMIT 1''', (shot_id + 1,))
+        cursor.execute('''SELECT TABLEID FROM TableShot WHERE SHOTID = ? ORDER BY TABLEID DESC LIMIT 1''', (shot_id,))
         table_id_result = cursor.fetchone()
         cursor.close()  # Closing the cursor after use
 
@@ -564,6 +565,7 @@ class Game:
         
         shot_id = self.db.newShot(gameName, playerName)
         svg_contents = []  # Initialize an empty list to store SVG content
+        balls_sunk = []
         
         cue_ball = table.cueBall()
         if cue_ball is None:
@@ -588,6 +590,7 @@ class Game:
         # Loop through segments until no more segments are returned
 
         current_table = table
+        sunk_ball_numbers = set()
         while True:
             start_time = current_table.time
             next_segment_table = current_table.segment()
@@ -603,12 +606,27 @@ class Game:
                 elapsed_time = frame * FRAME_INTERVAL
                 new_table = current_table.roll(elapsed_time)
                 new_table.time = start_time + elapsed_time
+            
 
+                current_ball_numbers = {ball.obj.still_ball.number for ball in current_table if isinstance(ball, StillBall) or isinstance(ball, RollingBall)}
+                next_ball_numbers = {ball.obj.still_ball.number for ball in next_segment_table if isinstance(ball, StillBall) or isinstance(ball, RollingBall)}
+
+                sunk_balls = current_ball_numbers - next_ball_numbers
+                for ball_number in sunk_balls:
+                    # Only add the ball number if it hasn't been added before
+                    if ball_number not in sunk_ball_numbers:
+                        balls_sunk.append((ball_number, new_table.time))
+                        sunk_ball_numbers.add(ball_number)
+
+
+                svg_contents.append(new_table.svg())
                 table_id = self.db.writeTable(new_table)
                 self.db.recordTableShot(table_id, shot_id)
-                svg_contents.append(new_table.svg())
 
             current_table = next_segment_table
+            table_id = self.db.writeTable(next_segment_table)
+            self.db.recordTableShot(table_id, shot_id)
 
-        return shot_id, svg_contents
+        print(balls_sunk)
 
+        return shot_id, svg_contents, balls_sunk
