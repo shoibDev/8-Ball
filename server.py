@@ -241,7 +241,6 @@ class RequestHandler(BaseHTTPRequestHandler):
             self.send_error(404, "File Not Found: " + self.path)
             
 if __name__ == "__main__":
-    httpd = HTTPServer( ( 'localhost', 12224), RequestHandler )
-    #httpd = HTTPServer( ( 'localhost', int(sys.argv[1])), RequestHandler )
+    httpd = HTTPServer( ( 'localhost', int(sys.argv[1])), RequestHandler )
     httpd.serve_forever()
 
