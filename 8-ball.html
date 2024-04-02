@@ -7,10 +7,19 @@
 </head>
 <body>
     <div class="game-container">
-        <div id="playerOneContainer">Player 1 <p id="labelOne"></p></div>
+        <div id="playerOneContainer"> <p id="playerOneName"></p><p id="labelOne"></p></div>
         <div id="svgContainer"></div>
-        <div id="playerTwoContainer">Player 2 <p id="labelTwo"></p></div>
+        <div id="playerTwoContainer"> <p id="playerTwoName"></p><p id="labelTwo"></p></div>
     </div>
+
+    <div id="gameModal">
+        <div>
+          <span id="modalClose">&times;</span>
+          <p id="modalText">Someone wins or loses.</p>
+          <button id="reloadPage">Reload Game</button>
+        </div>
+    </div>
+
     <script type="module" src="script.js"></script>
 </body>
 </html>

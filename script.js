@@ -4,9 +4,8 @@ var FormData = (function() {
     return getFormData();
 })();
 
-
-var currentPlayer = 'player1'; // Default to 'player1' or 'player2'
-var switchPlayer = true; // Keeps track of whether to switch player after a shot
+var currentPlayer = 'player1'; 
+var switchPlayer = true; 
 let firstSink = 0;
 
 let playerOneBalls = []
@@ -19,6 +18,8 @@ let high = 15;
 let blackBall = 8;
 let low = 7;
 
+var active = true; // Game is active when true
+
 function displaySVGsInSequence(svgContents) {
     const svgContainer = $('#svgContainer');
     let index = 0;
@@ -27,11 +28,11 @@ function displaySVGsInSequence(svgContents) {
         if (index < svgContents.length) {
             svgContainer.html(svgContents[index]);
             index++;
-            setTimeout(displayNextSVG, 10); // Wait for 1 second before displaying the next SVG
+            setTimeout(displayNextSVG, 10);
         }
     }
-
     displayNextSVG();
+    active = true;
 }
 
 function updatePlayerUI(currentPlayer) {
@@ -45,12 +46,10 @@ function updatePlayerUI(currentPlayer) {
 }
 
 function updatePlayerBalls(balls_sunk) {
-    // Extract only the ball numbers from the tuples
     const ballNumbers = balls_sunk.map(ballInfo => ballInfo[0]);
     console.log(ballNumbers)
 
     if (firstSink === 0 && ballNumbers.length > 0) {
-        // Assign sides based on the first ball sunk
         assignSides(ballNumbers[0]);
         firstSink = 1; // Update firstSink to indicate sides have been assigned
     }
@@ -105,13 +104,13 @@ function assignSides(firstBallNumber) {
 
 function checkForWin() {
     if (sideLow === 'player1' && !playerOneBalls.includes(blackBall) && playerOneBalls.length === low) {
-        return playerOneBalls.includes(blackBall) ? false : 'player1';
+        return playerOneBalls.includes(blackBall) ? false : FormData.player1Name;
     } else if (sideLow === 'player2' && !playerTwoBalls.includes(blackBall) && playerTwoBalls.length === low) {
-        return playerTwoBalls.includes(blackBall) ? false : 'player2';
+        return playerTwoBalls.includes(blackBall) ? false : FormData.player2Name;
     } else if (sideHigh === 'player1' && !playerOneBalls.includes(blackBall) && playerOneBalls.length === high) {
-        return playerOneBalls.includes(blackBall) ? false : 'player1';
+        return playerOneBalls.includes(blackBall) ? false : FormData.player1Name;
     } else if (sideHigh === 'player2' && !playerTwoBalls.includes(blackBall) && playerTwoBalls.length === high) {
-        return playerTwoBalls.includes(blackBall) ? false : 'player2';
+        return playerTwoBalls.includes(blackBall) ? false : FormData.player2Name;
     }
     return false;
 }
@@ -135,15 +134,21 @@ function updateGameAfterShot(balls_sunk) {
         const winner = checkForWin();
         if (winner) {
             console.log(winner + " wins the game!");
+            $("#modalText").text(winner + " wins the game!");
+            $("#gameModal").css("display", "block");
+            active = false;
         } else {
             console.log(currentPlayer + " loses by sinking the 8-ball prematurely.");
+            $("#modalText").text(currentPlayer + " loses by sinking the 8-ball prematurely.");
+            $("#gameModal").css("display", "block");
+            active = false;
         }
     } else {
         if (sunkOpponentBall) {
             switchPlayer = false;
         }
         if (!sunkOwnBall) {
-            switchPlayer = true; // Switch player if no own balls were sunk
+            switchPlayer = true;
         }
         if(sunkOwnBall){
             switchPlayer = false;
@@ -154,44 +159,46 @@ function updateGameAfterShot(balls_sunk) {
 
 $(document).ready(function() {
 
-    currentPlayer = Math.random() < 0.5 ? 'player1' : 'player2';
+    var currentPlayer = Math.random() < 0.5 ? 'player1' : 'player2';
     console.log(currentPlayer + " starts first");
     updatePlayerUI(currentPlayer);
+
+    // Set player names from FormData
+    $('#playerOneName').text(FormData.player1Name || "Player 1");
+    $('#playerTwoName').text(FormData.player2Name || "Player 2");
 
     let isDragging = false;
     let line = null;
     let startX, startY;
 
     $('#svgContainer').on('mousedown', 'circle[fill="WHITE"]', function(event) {
+        event.preventDefault();
+        
         const svg = document.querySelector('#svgContainer svg');
-        const pt = svg.createSVGPoint();
-        pt.x = event.clientX;
-        pt.y = event.clientY;
-        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-
-        startX = svgP.x;
-        startY = svgP.y;
-
+        startX = parseFloat($(this).attr('cx'));
+        startY = parseFloat($(this).attr('cy'));
+    
         isDragging = true;
         line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', startX);
-        line.setAttribute('y1', startY);
-        line.setAttribute('x2', startX);
-        line.setAttribute('y2', startY);
+        line.setAttribute('x1', startX); // Start from the ball's center
+        line.setAttribute('y1', startY); // Start from the ball's center
+        line.setAttribute('x2', startX); // Initially, line is a point
+        line.setAttribute('y2', startY); // Initially, line is a point
         line.setAttribute('stroke', 'black');
-        line.setAttribute('stroke-width', 5); // Thick line
+        line.setAttribute('stroke-width', 5); // Thick line for visibility
         svg.appendChild(line);
     });
 
     $(document).on('mousemove', function(event) {
         if (!isDragging || !line) return;
-
+    
         const svg = document.querySelector('#svgContainer svg');
         const pt = svg.createSVGPoint();
         pt.x = event.clientX;
         pt.y = event.clientY;
         const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-
+    
+        // Instead of inverting the direction, directly use the mouse position
         line.setAttribute('x2', svgP.x);
         line.setAttribute('y2', svgP.y);
     });
@@ -205,9 +212,10 @@ $(document).ready(function() {
         pt.x = event.clientX;
         pt.y = event.clientY;
         const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    
-        const deltaX = svgP.x - startX;
-        const deltaY = svgP.y - startY;
+
+        // Calculate deltas for the shot based on the inverted line
+        const deltaX = startX - (svgP.x - startX) - startX;
+        const deltaY = startY - (svgP.y - startY) - startY;
     
         if (line) {
             line.remove();
@@ -216,39 +224,44 @@ $(document).ready(function() {
     
         var currentPlayerKey = currentPlayer + "Name";
         var data = {
-            playerName: FormData[currentPlayerKey], // Dynamically access the name based on currentPlayer
-            gameName: FormData.gameName, // Directly accessing properties without jQuery syntax
+            playerName: FormData[currentPlayerKey], 
+            gameName: FormData.gameName, 
             x: deltaX,
             y: deltaY
         };
-    
-        // Use $.post to send the data, including handling success and error responses
-        $.post("/shot", data)
-            .done(function(response) {
-                console.log("Shot submitted successfully:", response);
-                switchPlayer = true
-                console.log(currentPlayer)
-            
-                if (response.svgContents) {
-                    displaySVGsInSequence(response.svgContents);
-                }
 
-                if (response.balls_sunk && response.balls_sunk.length > 0) {
-                    
-                    updatePlayerBalls(response.balls_sunk);
-                    updateGameAfterShot(response.balls_sunk);
-                }
-
-                if (switchPlayer) {
-                    currentPlayer = currentPlayer === 'player1' ? 'player2' : 'player1';
-                    console.log("Switching players. It's now " + currentPlayer + "'s turn.");
-                    updatePlayerUI(currentPlayer); // Update the UI to reflect the current player
-                }
-
+        if(active){
+            $.post("/shot", data)
+                .done(function(response) {
+                    switchPlayer = true
+                    active = false
                 
-            })
-            .fail(function(jqXHR, textStatus, errorThrown) {
-                console.error("Error submitting shot:", textStatus, errorThrown);
-            });
+                    if (response.svgContents) {
+                        displaySVGsInSequence(response.svgContents);
+                    }
+
+                    if (response.balls_sunk && response.balls_sunk.length > 0) {
+                        
+                        updatePlayerBalls(response.balls_sunk);
+                        updateGameAfterShot(response.balls_sunk);
+                    }
+                    if (switchPlayer) {
+                        currentPlayer = currentPlayer === 'player1' ? 'player2' : 'player1';
+                        console.log("Switching players. It's now " + currentPlayer + "'s turn.");
+                        updatePlayerUI(currentPlayer); // Update the UI to reflect the current player
+                    }
+                })
+                .fail(function(jqXHR, textStatus, errorThrown) {
+                    console.error("Error submitting shot:", textStatus, errorThrown);
+                });
+        }
+    });
+
+    $('#modalClose').click(function() {
+        $('#gameModal').hide();
+    });
+    
+    $('#reloadPage').click(function() {
+        window.location.reload(); // Reloads the current page
     });
 });

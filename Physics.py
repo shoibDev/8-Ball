@@ -597,6 +597,8 @@ class Game:
 
             if next_segment_table is None:
                 svg_contents.append(current_table.svg())
+                table_id = self.db.writeTable(current_table)
+                self.db.recordTableShot(table_id, shot_id)
                 break 
 
             segment_length_seconds = next_segment_table.time - start_time
@@ -606,7 +608,6 @@ class Game:
                 elapsed_time = frame * FRAME_INTERVAL
                 new_table = current_table.roll(elapsed_time)
                 new_table.time = start_time + elapsed_time
-            
 
                 current_ball_numbers = {ball.obj.still_ball.number for ball in current_table if isinstance(ball, StillBall) or isinstance(ball, RollingBall)}
                 next_ball_numbers = {ball.obj.still_ball.number for ball in next_segment_table if isinstance(ball, StillBall) or isinstance(ball, RollingBall)}
@@ -620,13 +621,12 @@ class Game:
 
 
                 svg_contents.append(new_table.svg())
-                table_id = self.db.writeTable(new_table)
-                self.db.recordTableShot(table_id, shot_id)
+                #table_id = self.db.writeTable(new_table)
+                #self.db.recordTableShot(table_id, shot_id)
 
             current_table = next_segment_table
-            table_id = self.db.writeTable(next_segment_table)
-            self.db.recordTableShot(table_id, shot_id)
+            #table_id = self.db.writeTable(next_segment_table)
+            #self.db.recordTableShot(table_id, shot_id)
 
-        print(balls_sunk)
 
         return shot_id, svg_contents, balls_sunk

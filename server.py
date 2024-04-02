@@ -118,8 +118,6 @@ class RequestHandler(BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length)
         parsed = urlparse(self.path)
-
-        table = Physics.Table();
         
         if parsed.path == '/initialize':
             form_data = parse_qs(post_data.decode('utf-8'))
@@ -128,7 +126,22 @@ class RequestHandler(BaseHTTPRequestHandler):
             player2Name = form_data.get('player2Name', [None])[0]
             gameName = form_data.get('gameName', [None])[0]
 
-            ## initiliazing the game with 3 balls:
+            table = Physics.Table();
+        
+            ball_diameter = Physics.BALL_DIAMETER + 4.0  # Including a small gap between balls
+            triangle_height = math.sqrt(3) / 2 * ball_diameter
+
+            for row in range(3, 6):
+                for col in range(row):
+                    # Calculate the position for each ball in this row
+                    x = (Physics.TABLE_WIDTH / 2.0) - ((row - 1) * ball_diameter / 2) + (col * ball_diameter) + nudge()
+                    y = (Physics.TABLE_WIDTH / 2.0) - (triangle_height * (row - 1)) + nudge()
+                    # Adjust the ball number accordingly
+                    ball_number = sum(range(1, row)) + col + 1
+                    pos = Physics.Coordinate(x, y)
+                    sb = Physics.StillBall(ball_number, pos)
+                    table += sb
+
             
             # 1 ball
             pos = Physics.Coordinate( 
@@ -158,7 +171,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                             math.sqrt(3.0)/2.0*(Physics.BALL_DIAMETER+4.0) +
                             nudge()
                             );
-            sb = Physics.StillBall( 8, pos );
+            sb = Physics.StillBall( 3, pos );
             table += sb;
 
             # cue ball also still
@@ -167,6 +180,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             sb  = Physics.StillBall( 0, pos );  
 
             table += sb;
+
             RequestHandler.initalTable = table;
             RequestHandler.game = Physics.Game( gameName=gameName, player1Name=player1Name, player2Name=player2Name );
             
@@ -191,14 +205,13 @@ class RequestHandler(BaseHTTPRequestHandler):
             x = float(form_data.get('x', [0])[0])
             y = float(form_data.get('y', [0])[0])
 
-            if RequestHandler.tableId == 0:
+            if RequestHandler.tableId == 0 and RequestHandler.db.readTable(RequestHandler.tableId) is None:
                 shotId, svg_contents, balls_sunk = RequestHandler.game.shoot(gameName, playerName, RequestHandler.initalTable, x, y)
             else:
                 table = RequestHandler.db.readTable(RequestHandler.tableId)
                 shotId, svg_contents, balls_sunk = RequestHandler.game.shoot(gameName, playerName, table, x, y)
             
-        
-            RequestHandler.tableId = RequestHandler.db.getTableIdByShotId(shotId)    
+            RequestHandler.tableId = RequestHandler.db.getTableIdByShotId(shotId)
             table = RequestHandler.db.readTable(RequestHandler.tableId)
 
             if table.cueBall() is None: 
