@@ -47,7 +47,6 @@ function updatePlayerUI(currentPlayer) {
 
 function updatePlayerBalls(balls_sunk) {
     const ballNumbers = balls_sunk.map(ballInfo => ballInfo[0]);
-    console.log(ballNumbers)
 
     if (firstSink === 0 && ballNumbers.length > 0) {
         assignSides(ballNumbers[0]);
@@ -133,12 +132,12 @@ function updateGameAfterShot(balls_sunk) {
     if (sunkBlackBall) {
         const winner = checkForWin();
         if (winner) {
-            console.log(winner + " wins the game!");
+          
             $("#modalText").text(winner + " wins the game!");
             $("#gameModal").css("display", "block");
             active = false;
         } else {
-            console.log(currentPlayer + " loses by sinking the 8-ball prematurely.");
+          
             $("#modalText").text(currentPlayer + " loses by sinking the 8-ball prematurely.");
             $("#gameModal").css("display", "block");
             active = false;
@@ -160,7 +159,6 @@ function updateGameAfterShot(balls_sunk) {
 $(document).ready(function() {
 
     var currentPlayer = Math.random() < 0.5 ? 'player1' : 'player2';
-    console.log(currentPlayer + " starts first");
     updatePlayerUI(currentPlayer);
 
     // Set player names from FormData
@@ -247,7 +245,7 @@ $(document).ready(function() {
                     }
                     if (switchPlayer) {
                         currentPlayer = currentPlayer === 'player1' ? 'player2' : 'player1';
-                        console.log("Switching players. It's now " + currentPlayer + "'s turn.");
+            
                         updatePlayerUI(currentPlayer); // Update the UI to reflect the current player
                     }
                 })
